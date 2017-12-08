@@ -1,13 +1,18 @@
 package org.hibernate.bugs;
 
+import org.hibernate.bugs.db.Invoice;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.Persistence;
 import javax.persistence.Query;
+import javax.persistence.Tuple;
+import javax.persistence.TupleElement;
 import java.util.List;
 
 /**
@@ -16,29 +21,61 @@ import java.util.List;
 public class JPAUnitTestCase {
 
 	private EntityManagerFactory entityManagerFactory;
+	private EntityManager entityManager;
 
 	@Before
 	public void init() {
-		entityManagerFactory = Persistence.createEntityManagerFactory( "templatePU" );
+		entityManagerFactory = Persistence.createEntityManagerFactory("templatePU");
+
+		entityManager = entityManagerFactory.createEntityManager();
+		entityManager.getTransaction().begin();
+
+
 	}
 
 	@After
 	public void destroy() {
-		entityManagerFactory.close();
-	}
-
-	// Entities are auto-discovered, so just add them anywhere on class-path
-	// Add your tests, using standard JUnit.
-	@Test
-	public void hhh12119Test() throws Exception {
-		EntityManager entityManager = entityManagerFactory.createEntityManager();
-		entityManager.getTransaction().begin();
-		// Do stuff...
-
-		final Query query = entityManager.createNativeQuery("select i.invoice_id as \"invoiceId\", i.booking_tag as \"bookingTag\", i.invoice_number as \"invoiceNumber\", i.created_by as \"createdBy\", i.invoice_api_groups as \"apiGroups\", i.invoice_date as \"invoiceDate\", r.recipient as \"recipient\" from invoice i inner join recipient r on (i.recipient_recipient_id = r.recipient_id) where i.invoice_state = 0 and i.invoice_api_groups similar to '%tlang%|%Seminare%' order by i.invoice_date desc");
-		final List resultList = query.getResultList();
 
 		entityManager.getTransaction().commit();
 		entityManager.close();
+
+		entityManagerFactory.close();
+	}
+
+	// Entities are auto-discovered, so just add them anywhere on class-
+	// path
+	// Add your tests, using standard JUnit.
+	@Test
+	public void hhh12119Test() throws Exception {
+		// Do stuff...
+
+		Invoice invoice = new Invoice();
+		invoice.setBookingTag("a booking tag");
+
+		entityManager.persist(invoice);
+
+		final Query query = entityManager.createNativeQuery("SELECT invoiceid AS \"idWithUpperCase\", bookingtag AS \"bookingTagWithUpperCase\" FROM invoice", Tuple.class);
+		final List<Tuple> resultList = query.getResultList();
+
+		Assert.assertEquals(1, resultList.size());
+		Tuple tuple = resultList.get(0);
+		List<TupleElement<?>> elements = tuple.getElements();
+		Assert.assertEquals(2, elements.size());
+
+		for (TupleElement<?> element : elements) {
+			Assert.assertTrue(element.getAlias(), element.getAlias().contains("WithUpperCase"));
+			;
+		}
+
+
+	}
+
+	@Test
+	public void doNothing() throws Exception {
+
+		Invoice invoice = new Invoice();
+		invoice.setBookingTag("a booking tag");
+
+		entityManager.persist(invoice);
 	}
 }
